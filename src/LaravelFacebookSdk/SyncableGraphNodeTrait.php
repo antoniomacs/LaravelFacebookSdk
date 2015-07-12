@@ -28,6 +28,9 @@ trait SyncableGraphNodeTrait
         if ($data instanceof GraphObject || $data instanceof GraphNode) {
             $data = $data->asArray();
         }
+        
+        $data = static::removeIgnoreKeysFromFacebookData($data);
+        $data = static::flattenFacebookDataArray($data);
 
         if (! isset($data['id'])) {
             throw new \InvalidArgumentException('Graph node id is missing');
@@ -100,4 +103,47 @@ trait SyncableGraphNodeTrait
             $object->{static::fieldToColumnName($field)} = $value;
         }
     }
+    
+    /**
+     * Flattens an array of data from Graph with the path as the key
+     *
+     * @param array $data
+     *
+     * @return array
+     */
+    private static function flattenFacebookDataArray(array $data)
+    {
+        $query = http_build_query($data, null, '&');
+        $params = explode('&', $query);
+        $result = [];
+        foreach ($params as $param) {
+            list($key, $value) = explode('=', $param, 2);
+            $result[urldecode($key)] = urldecode($value);
+        }
+        return $result;
+    }
+
+
+
+    /**
+     * Removes any keys from Facebook that we want to ignore
+     *
+     * @param array $data
+     *
+     * @return array
+     */
+    private static function removeIgnoreKeysFromFacebookData(array $data)
+    {
+        $model_name = get_class(new static());
+        if (property_exists($model_name, 'facebook_ignore_fields') && isset(static::$facebook_ignore_fields))
+        {
+            foreach (static::$facebook_ignore_fields as $key)
+            {
+                unset($data[$key]);
+            }
+        }
+        return $data;
+    }
+    
+    
 }
